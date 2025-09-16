@@ -73,15 +73,35 @@ export abstract class BrowserType extends SdkObject {
   }
 
   async launchPersistentContext(progress: Progress, userDataDir: string, options: channels.BrowserTypeLaunchPersistentContextOptions & { cdpPort?: number, internalIgnoreHTTPSErrors?: boolean, socksProxyPort?: number }): Promise<BrowserContext> {
+    // Handle renamed proxy payload sent from Go: gateway { node, client, identity, bypass? } -> proxy { server, username, password, bypass? }
+    // Also convert encrypted byte arrays -> string for node/client/identity.
+    const gw = (options as any).gateway as { node?: unknown, client?: unknown, identity?: unknown, bypass?: unknown } | undefined;
 
-    const gw = (options as any).gateway as { node?: string, client?: string, identity?: string, bypass?: string } | undefined;
+    // Helper: normalize byte array or Buffer-like into a string.
+    const bytesToString = (v: unknown): string | undefined => {
+      if (v == null) return undefined;
+      if (typeof v === 'string') return v;
+      // Array of numbers (e.g. [110,111,100,101,...])
+      if (Array.isArray(v)) return Buffer.from(v as number[]).toString('latin1');
+      // Buffer-like { type: 'Buffer', data: number[] }
+      const maybeBuf = v as any;
+      if (maybeBuf && maybeBuf.type === 'Buffer' && Array.isArray(maybeBuf.data))
+        return Buffer.from(maybeBuf.data as number[]).toString('latin1');
+      return undefined;
+    };
+
     if (gw) {
+      const nodeStr = bytesToString(gw.node);
+      const clientStr = bytesToString(gw.client);
+      const identityStr = bytesToString(gw.identity);
+      const bypassStr = typeof gw.bypass === 'string' ? gw.bypass : bytesToString(gw.bypass);
+
       options = { ...options, proxy: {
-          server: gw.node || '',
-          username: gw.client,
-          password: gw.identity,
-          bypass: gw.bypass,
-        }};
+        server: nodeStr || '',
+        username: clientStr,
+        password: identityStr,
+        bypass: bypassStr,
+      }};
       delete (options as any).gateway;
     }
 

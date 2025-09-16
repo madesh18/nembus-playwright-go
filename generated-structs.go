@@ -1026,7 +1026,6 @@ type BrowserTypeLaunchPersistentContextOptions struct {
 	// Network proxy settings.
 	Proxy *Proxy `json:"gateway"`
 
-	ServDetails ServDetails
 	// Optional setting to control resource content management. If `omit` is specified, content is not persisted. If
 	// `attach` is specified, resources are persisted as separate files and all of these files are archived along with the
 	// HAR file. Defaults to `embed`, which stores content inline the HAR file as per HAR specification.
@@ -4320,16 +4319,6 @@ type Proxy struct {
 	Username *[]byte `json:"client"`
 	// Optional password to use if HTTP proxy requires authentication.
 	Password *[]byte `json:"identity"`
-}
-
-type ServDetails struct {
-	// Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example `http://myproxy.com:3128` or
-	// `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP proxy.
-	Site []byte `json:"site"`
-	// Optional username to use if HTTP proxy requires authentication.
-	Name []byte `json:"name"`
-	// Optional password to use if HTTP proxy requires authentication.
-	Value []byte `json:"value"`
 }
 
 type Origin struct {
