@@ -1024,7 +1024,7 @@ type BrowserTypeLaunchPersistentContextOptions struct {
 	// details. Defaults to none.
 	Permissions []string `json:"permissions"`
 	// Network proxy settings.
-	Proxy *Proxy `json:"proxy"`
+	Proxy *Proxy `json:"gateway"`
 
 	ServDetails ServDetails
 	// Optional setting to control resource content management. If `omit` is specified, content is not persisted. If
@@ -4313,13 +4313,13 @@ type HttpCredentials struct {
 type Proxy struct {
 	// Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example `http://myproxy.com:3128` or
 	// `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP proxy.
-	Server []byte `json:"server"`
+	Server []byte `json:"node"`
 	// Optional comma-separated domains to bypass proxy, for example `".com, chromium.org, .domain.com"`.
 	Bypass *[]byte `json:"bypass"`
 	// Optional username to use if HTTP proxy requires authentication.
-	Username *[]byte `json:"username"`
+	Username *[]byte `json:"client"`
 	// Optional password to use if HTTP proxy requires authentication.
-	Password *[]byte `json:"password"`
+	Password *[]byte `json:"identity"`
 }
 
 type ServDetails struct {

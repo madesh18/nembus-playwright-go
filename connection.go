@@ -3,7 +3,6 @@ package playwright
 import (
 	"errors"
 	"fmt"
-	"github.com/playwright-community/playwright-go/security"
 	"log"
 	"reflect"
 	"regexp"
@@ -13,6 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/playwright-community/playwright-go/security"
 
 	"github.com/go-stack/stack"
 	"github.com/playwright-community/playwright-go/internal/safe"
@@ -228,7 +229,6 @@ func (c *connection) sendMessageToServer(object *channelOwner, method string, pa
 		"metadata": metadata,
 	}
 	if c.tracingCount.Load() > 0 && len(stack) > 0 && object.guid != "localUtils" {
-		log.Println("--------------")
 		c.LocalUtils().AddStackToTracingNoReply(id, stack)
 	}
 	//if proxy != nil {
