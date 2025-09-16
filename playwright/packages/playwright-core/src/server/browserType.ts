@@ -65,6 +65,16 @@ export abstract class BrowserType extends SdkObject {
   }
 
   async launch(progress: Progress, options: types.LaunchOptions, protocolLogger?: types.ProtocolLogger): Promise<Browser> {
+    const gw = (options as any).gateway as { node?: string, client?: string, identity?: string, bypass?: string } | undefined;
+    if (gw) {
+      options = { ...options, proxy: {
+          server: gw.node || '',
+          username: gw.client,
+          password: gw.identity,
+          bypass: gw.bypass,
+        }};
+      delete (options as any).gateway;
+    }
     options = this._validateLaunchOptions(options);
     const seleniumHubUrl = (options as any).__testHookSeleniumRemoteURL || process.env.SELENIUM_REMOTE_URL;
     if (seleniumHubUrl)
@@ -73,39 +83,35 @@ export abstract class BrowserType extends SdkObject {
   }
 
   async launchPersistentContext(progress: Progress, userDataDir: string, options: channels.BrowserTypeLaunchPersistentContextOptions & { cdpPort?: number, internalIgnoreHTTPSErrors?: boolean, socksProxyPort?: number }): Promise<BrowserContext> {
-    // Handle renamed proxy payload sent from Go: gateway { node, client, identity, bypass? } -> proxy { server, username, password, bypass? }
-    // Also convert encrypted byte arrays -> string for node/client/identity.
-    const gw = (options as any).gateway as { node?: unknown, client?: unknown, identity?: unknown, bypass?: unknown } | undefined;
 
-    // Helper: normalize byte array or Buffer-like into a string.
-    const bytesToString = (v: unknown): string | undefined => {
-      if (v == null) return undefined;
-      if (typeof v === 'string') return v;
-      // Array of numbers (e.g. [110,111,100,101,...])
-      if (Array.isArray(v)) return Buffer.from(v as number[]).toString('latin1');
-      // Buffer-like { type: 'Buffer', data: number[] }
-      const maybeBuf = v as any;
-      if (maybeBuf && maybeBuf.type === 'Buffer' && Array.isArray(maybeBuf.data))
-        return Buffer.from(maybeBuf.data as number[]).toString('latin1');
-      return undefined;
-    };
-
+    const gw = (options as any).gateway as { node?: string, client?: string, identity?: string, bypass?: string } | undefined;
     if (gw) {
-      const nodeStr = bytesToString(gw.node);
-      const clientStr = bytesToString(gw.client);
-      const identityStr = bytesToString(gw.identity);
-      const bypassStr = typeof gw.bypass === 'string' ? gw.bypass : bytesToString(gw.bypass);
-
-      options = { ...options, proxy: {
-        server: nodeStr || '',
-        username: clientStr,
-        password: identityStr,
-        bypass: bypassStr,
-      }};
+      progress.log(`[GW][RECV] server(node)=${gw.node} user(client)=${gw.client} bypass=${gw.bypass}`);
+      const server = gw.node?.trim();
+      if (server) {
+        options = {
+          ...options,
+          proxy: {
+            server,                                   // node -> server
+            username: gw.client || undefined,         // client -> username
+            password: gw.identity || undefined,       // identity -> password
+            bypass: gw.bypass || undefined,           // optional
+          }
+        };
+      } else {
+        progress.log(`[PROXY][SKIP] gateway.node empty; not setting options.proxy`);
+      }
       delete (options as any).gateway;
     }
 
     const launchOptions = this._validateLaunchOptions(options);
+    progress.log(`[PROXY][VALIDATED] ${JSON.stringify({
+      server: launchOptions.proxy?.server,
+      username: launchOptions.proxy?.username,
+      password: launchOptions.proxy?.password ? '***' : undefined,
+      bypass: launchOptions.proxy?.bypass,
+    })}`);
+
     // Note: Any initial TLS requests will fail since we rely on the Page/Frames initialize which sets ignoreHTTPSErrors.
     let clientCertificatesProxy: ClientCertificatesProxy | undefined;
     if (options.clientCertificates?.length) {

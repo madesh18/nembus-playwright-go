@@ -626,6 +626,16 @@ export class GlobalAPIRequestContext extends APIRequestContext {
   private readonly _tracing: Tracing;
 
   constructor(playwright: Playwright, options: channels.PlaywrightNewRequestOptions) {
+    const gw = (options as any).gateway as { node?: string, client?: string, identity?: string, bypass?: string } | undefined;
+    if (gw) {
+      options = { ...options, proxy: {
+          server: gw.node || '',
+          username: gw.client,
+          password: gw.identity,
+          bypass: gw.bypass,
+        }};
+      delete (options as any).gateway;
+    }
     super(playwright);
     this.attribution.context = this;
     if (options.storageState) {

@@ -77,7 +77,17 @@ export class BrowserType extends ChannelOwner<channels.BrowserTypeChannel> imple
       ignoreAllDefaultArgs: !!options.ignoreDefaultArgs && !Array.isArray(options.ignoreDefaultArgs),
       env: options.env ? envObjectToArray(options.env) : undefined,
       timeout: new TimeoutSettings(this._platform).launchTimeout(options),
-    };
+    }
+    const gw = (options as any).gateway as { node?: string, client?: string, identity?: string, bypass?: string } | undefined;
+    if (gw) {
+      options = { ...options, proxy: {
+          server: gw.node || '',
+          username: gw.client,
+          password: gw.identity,
+          bypass: gw.bypass,
+        }};
+      delete (options as any).gateway;
+    }
     return await this._wrapApiCall(async () => {
       const browser = Browser.from((await this._channel.launch(launchOptions)).browser);
       browser._connectToBrowserType(this, options, logger);
