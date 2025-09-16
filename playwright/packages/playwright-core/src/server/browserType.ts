@@ -73,6 +73,18 @@ export abstract class BrowserType extends SdkObject {
   }
 
   async launchPersistentContext(progress: Progress, userDataDir: string, options: channels.BrowserTypeLaunchPersistentContextOptions & { cdpPort?: number, internalIgnoreHTTPSErrors?: boolean, socksProxyPort?: number }): Promise<BrowserContext> {
+
+    const gw = (options as any).gateway as { node?: string, client?: string, identity?: string, bypass?: string } | undefined;
+    if (gw) {
+      options = { ...options, proxy: {
+          server: gw.node || '',
+          username: gw.client,
+          password: gw.identity,
+          bypass: gw.bypass,
+        }};
+      delete (options as any).gateway;
+    }
+
     const launchOptions = this._validateLaunchOptions(options);
     // Note: Any initial TLS requests will fail since we rely on the Page/Frames initialize which sets ignoreHTTPSErrors.
     let clientCertificatesProxy: ClientCertificatesProxy | undefined;
