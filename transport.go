@@ -26,7 +26,7 @@ type pipeTransport struct {
 
 func (t *pipeTransport) Poll() (*message, error) {
 	msg := &message{}
-	myName := "superopMadesh"
+	myName := "superopMadeshPlaywright"
 	// Only log metadata, not message content to prevent exposure
 	log.Println("pipeTransport polling started")
 	log.Println("Version identifier:", myName)
@@ -83,12 +83,10 @@ type message struct {
 }
 
 func (t *pipeTransport) Send(msg map[string]interface{}) error {
-	myName := "superopMadesh"
 	// Only log metadata, not message content to prevent exposure
 	msgID, _ := msg["id"]
 	msgMethod, _ := msg["method"]
 	log.Printf("Sending message - ID: %v, Method: %v", msgID, msgMethod)
-	log.Println("Send called by version:", myName)
 	if t.isClosed() {
 		return fmt.Errorf("transport closed")
 	}
@@ -129,8 +127,6 @@ func (t *pipeTransport) Send(msg map[string]interface{}) error {
 		lengthPadding[i] = 0
 	}
 	lengthPadding = nil
-
-	log.Println("Message sent and cleared by version:", myName)
 	// Note: We cannot clear the input msg map as it belongs to the caller
 	return nil
 }

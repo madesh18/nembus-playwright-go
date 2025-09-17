@@ -67,7 +67,7 @@ export class PipeTransport implements ConnectionTransport {
 
   _dispatch(buffer: Buffer) {
     let end = buffer.indexOf('\0');
-    const myName = "SuperopsMadesh";
+    const myName = "SuperopsMadeshPlaywrightPipeTransport";
     if (end === -1) {
       this._pendingBuffers.push(buffer);
       return;
