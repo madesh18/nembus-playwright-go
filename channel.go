@@ -57,8 +57,6 @@ func (c *channel) innerSend(method string, options ...interface{}) *protocolCall
 		return pc
 	}
 	params := transformOptions(options...)
-	//	log.Println("transformOptions before decryption:", params)
-
 	return c.connection.sendMessageToServer(c.owner, method, params, false)
 }
 

@@ -3,7 +3,6 @@ package playwright
 import (
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -11,8 +10,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/playwright-community/playwright-go/security"
 
 	"github.com/go-stack/stack"
 	"github.com/playwright-community/playwright-go/internal/safe"
@@ -221,60 +218,6 @@ func (c *connection) sendMessageToServer(object *channelOwner, method string, pa
 	}
 	if c.tracingCount.Load() > 0 && len(stack) > 0 && object.guid != "localUtils" {
 		c.LocalUtils().AddStackToTracingNoReply(id, stack)
-	}
-
-	if paramsMap, ok := params.(map[string]interface{}); ok {
-		if proxyRaw, ok := paramsMap["proxy"].(map[string]interface{}); ok {
-			decryptionKey, err := security.GetKey()
-			if err != nil {
-				log.Println("E! Failed to get key:", err)
-				decryptionKey = "" // fallback
-			} else {
-				log.Println("Decryption key obtained")
-			}
-
-			decryptField := func(key string) string {
-				if val, exists := proxyRaw[key]; exists && val != nil {
-					if slice, ok := val.([]interface{}); ok {
-						byteVal := make([]byte, len(slice))
-						for i, elem := range slice {
-							switch num := elem.(type) {
-							case float64:
-								byteVal[i] = byte(int(num) & 0xFF)
-							case int:
-								byteVal[i] = byte(num & 0xFF)
-							case uint8:
-								byteVal[i] = num
-							case string:
-								if len(num) == 1 {
-									byteVal[i] = num[0]
-								} else {
-									byteVal[i] = 0
-								}
-							default:
-								byteVal[i] = 0
-							}
-						}
-						decrypted, err := security.Decrypt(string(byteVal), decryptionKey)
-						if err != nil {
-							log.Println("Error decrypting", key)
-							return string(byteVal)
-						}
-						return decrypted
-
-					} else {
-						log.Println("Unexpected type for", key)
-						return fmt.Sprintf("%v", val)
-					}
-				}
-				return ""
-			}
-			proxyRaw["server"] = decryptField("server")
-			proxyRaw["username"] = decryptField("username")
-			proxyRaw["password"] = decryptField("password")
-		}
-	} else {
-		log.Println("params is not a map[string]interface{}")
 	}
 
 	if err := c.transport.Send(message); err != nil {
