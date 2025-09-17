@@ -77,6 +77,7 @@ func (t *pipeTransport) Send(msg map[string]interface{}) error {
 	if t.isClosed() {
 		return fmt.Errorf("transport closed")
 	}
+
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("pipeTransport: could not marshal json: %w", err)
