@@ -20,17 +20,6 @@ import { debugLogger } from './utils/debugLogger';
 
 import type { ConnectionTransport, ProtocolRequest, ProtocolResponse } from './transport';
 
-// Secure memory sanitization helper
-function secureBufferClear(buffer: Buffer): void {
-  if (buffer && buffer.length > 0) {
-    buffer.fill(0);
-  }
-}
-
-function secureBufferArrayClear(buffers: Buffer[]): void {
-  buffers.forEach(buffer => secureBufferClear(buffer));
-}
-
 export class PipeTransport implements ConnectionTransport {
   private _pipeRead: NodeJS.ReadableStream;
   private _pipeWrite: NodeJS.WritableStream;
@@ -78,28 +67,23 @@ export class PipeTransport implements ConnectionTransport {
 
   _dispatch(buffer: Buffer) {
     let end = buffer.indexOf('\0');
-    const myName = "SuperopsMadeshPlaywrightPipeTransport";
     if (end === -1) {
       this._pendingBuffers.push(buffer);
       return;
     }
     this._pendingBuffers.push(buffer.slice(0, end));
+    let message = Buffer.concat(this._pendingBuffers).toString();
 
-    // Create concatenated buffer and immediately clear source buffers
-    const concatenatedBuffer = Buffer.concat(this._pendingBuffers);
-    secureBufferArrayClear(this._pendingBuffers);
+    // Clear pending buffers immediately after concatenation
     this._pendingBuffers = [];
-
-    let message = concatenatedBuffer.toString();
 
     this._waitForNextTask(() => {
       if (this.onmessage) {
         try {
           this.onmessage.call(null, JSON.parse(message));
         } finally {
-          // Securely clear the concatenated buffer and message
-          secureBufferClear(concatenatedBuffer);
-          message = "";
+          // Clear the message variable immediately after processing
+          message = '';
         }
       }
     });
@@ -107,18 +91,14 @@ export class PipeTransport implements ConnectionTransport {
     let start = end + 1;
     end = buffer.indexOf('\0', start);
     while (end !== -1) {
-      // Create temporary buffer for this message segment
-      const messageBuffer = buffer.slice(start, end);
-      let message = messageBuffer.toString();
-
+      let message = buffer.toString(undefined, start, end);
       this._waitForNextTask(() => {
         if (this.onmessage) {
           try {
             this.onmessage.call(null, JSON.parse(message));
           } finally {
-            // Clear the temporary buffer and message
-            secureBufferClear(messageBuffer);
-            message = "";
+            // Clear the message variable immediately after processing
+            message = '';
           }
         }
       });

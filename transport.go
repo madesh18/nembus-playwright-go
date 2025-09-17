@@ -54,8 +54,11 @@ func (t *pipeTransport) Poll() (*message, error) {
 		return nil, fmt.Errorf("could not decode json: %w", err)
 	}
 	if os.Getenv("DEBUGP") != "" {
-		fmt.Fprintf(os.Stderr, "\x1b[33mRECV>\x1b[0m\n[JSON DATA REDACTED FOR SECURITY]\n")
+		// Only show message metadata in debug, not content
+		fmt.Fprintf(os.Stdout, "\x1b[33mRECV>\x1b[0m Message ID: %d, Method: %s, GUID: %s\n",
+			msg.ID, msg.Method, msg.GUID)
 	}
+	// Only log metadata, not message content
 	return msg, nil
 }
 
@@ -118,7 +121,6 @@ func (t *pipeTransport) Send(msg map[string]interface{}) error {
 	}
 	return nil
 }
-
 func (t *pipeTransport) Close() error {
 	select {
 	case <-t.closed:
