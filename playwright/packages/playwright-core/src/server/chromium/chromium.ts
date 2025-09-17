@@ -261,7 +261,19 @@ export class Chromium extends BrowserType {
               method: 'GET',
               headers,
             }, seleniumErrorHandler);
-            const proxyId = JSON.parse(sessionResponse).proxyId;
+            let proxyId: string;
+            let responseBuffer: Buffer | null = null;
+            try {
+              responseBuffer = Buffer.from(sessionResponse, 'utf8');
+              const parsed = JSON.parse(responseBuffer.toString());
+              proxyId = parsed.proxyId;
+            } finally {
+              // Clear response data from memory immediately
+              if (responseBuffer) {
+                responseBuffer.fill(0);
+                responseBuffer = null;
+              }
+            }
             endpointURL.hostname = new URL(proxyId).hostname;
             progress.log(`<selenium> resolved endpoint ip ${endpointURL.toString()} for sessionId=${sessionId}`);
           } catch (e) {

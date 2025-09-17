@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 )
 
 type jsonPipe struct {
@@ -13,7 +12,6 @@ type jsonPipe struct {
 }
 
 func (j *jsonPipe) Send(message map[string]interface{}) error {
-	log.Println("message sent jsonPipe")
 	_, err := j.channel.Send("send", map[string]interface{}{
 		"message": message,
 	})
@@ -41,6 +39,18 @@ func newJsonPipe(parent *channelOwner, objectType string, guid string, initializ
 	j.channel.On("message", func(ev map[string]interface{}) {
 		var msg message
 		m, err := json.Marshal(ev["message"])
+
+		// Ensure marshalled bytes are cleared after use - fixes memory dump visibility issue
+		defer func() {
+			if m != nil {
+				// Clear sensitive JSON data from memory to prevent memory dump exposure
+				for i := range m {
+					m[i] = 0
+				}
+				m = nil
+			}
+		}()
+
 		if err == nil {
 			err = json.Unmarshal(m, &msg)
 		}

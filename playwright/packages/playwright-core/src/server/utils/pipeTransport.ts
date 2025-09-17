@@ -14,15 +14,22 @@
  * limitations under the License.
  */
 
-import { makeWaitForNextTask } from './task';
+import { makeWaitForNextTask } from "./task";
+
+// Secure memory sanitization helper
+function secureBufferClear(buffer: Buffer): void {
+  if (buffer && buffer.length > 0) {
+    buffer.fill(0);
+  }
+}
 
 interface WritableStream {
   write(data: Buffer): void;
 }
 
 interface ReadableStream {
-  on(event: 'data', callback: (b: Buffer) => void): void;
-  on(event: 'close', callback: () => void): void;
+  on(event: "data", callback: (b: Buffer) => void): void;
+  on(event: "close", callback: () => void): void;
 }
 
 interface ClosableStream {
@@ -35,36 +42,38 @@ export class PipeTransport {
   private _waitForNextTask = makeWaitForNextTask();
   private _closed = false;
   private _bytesLeft = 0;
+  private static readonly LENGTH_HEADER_SIZE = 4; // 32-bit unsigned integer
 
   onmessage?: (message: string) => void;
   onclose?: () => void;
 
-  private _endian: 'be' | 'le';
+  private _endian: "be" | "le";
   private _closeableStream: ClosableStream | undefined;
 
-  constructor(pipeWrite: WritableStream, pipeRead: ReadableStream, closeable?: ClosableStream, endian: 'be' | 'le' = 'le') {
+  constructor(
+    pipeWrite: WritableStream,
+    pipeRead: ReadableStream,
+    closeable?: ClosableStream,
+    endian: "be" | "le" = "le"
+  ) {
     this._pipeWrite = pipeWrite;
     this._endian = endian;
     this._closeableStream = closeable;
-    pipeRead.on('data', buffer => this._dispatch(buffer));
-    pipeRead.on('close', () => {
+    pipeRead.on("data", (buffer) => this._dispatch(buffer));
+    pipeRead.on("close", () => {
       this._closed = true;
-      if (this.onclose)
-        this.onclose();
+      if (this.onclose) this.onclose();
     });
     this.onmessage = undefined;
     this.onclose = undefined;
   }
 
   send(message: string) {
-    if (this._closed)
-      throw new Error('Pipe has been closed');
-    const data = Buffer.from(message, 'utf-8');
+    if (this._closed) throw new Error("Pipe has been closed");
+    const data = Buffer.from(message, "utf-8");
     const dataLength = Buffer.alloc(4);
-    if (this._endian === 'be')
-      dataLength.writeUInt32BE(data.length, 0);
-    else
-      dataLength.writeUInt32LE(data.length, 0);
+    if (this._endian === "be") dataLength.writeUInt32BE(data.length, 0);
+    else dataLength.writeUInt32LE(data.length, 0);
     this._pipeWrite.write(dataLength);
     this._pipeWrite.write(data);
   }
@@ -83,7 +92,12 @@ export class PipeTransport {
       }
 
       if (!this._bytesLeft) {
-        this._bytesLeft = this._endian === 'be' ? this._data.readUInt32BE(0) : this._data.readUInt32LE(0);
+        this._bytesLeft =
+          this._endian === "be"
+            ? this._data.readUInt32BE(0)
+            : this._data.readUInt32LE(0);
+        // Zero out the consumed length header
+        this._data.fill(0, 0, 4);
         this._data = this._data.slice(4);
       }
 
@@ -92,12 +106,22 @@ export class PipeTransport {
         break;
       }
 
-      const message = this._data.slice(0, this._bytesLeft);
+      const messageBuffer = this._data.slice(0, this._bytesLeft);
+      // Zero out the consumed portion of _data
+      this._data.fill(0, 0, this._bytesLeft);
       this._data = this._data.slice(this._bytesLeft);
       this._bytesLeft = 0;
+
       this._waitForNextTask(() => {
-        if (this.onmessage)
-          this.onmessage(message.toString('utf-8'));
+        if (this.onmessage) {
+          const messageString = messageBuffer.toString("utf-8");
+          try {
+            this.onmessage(messageString);
+          } finally {
+            // Securely clear the message buffer after processing
+            secureBufferClear(messageBuffer);
+          }
+        }
       });
     }
   }

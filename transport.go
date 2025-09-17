@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"os"
 
 	"github.com/go-jose/go-jose/v3/json"
@@ -25,9 +24,6 @@ type pipeTransport struct {
 }
 
 func (t *pipeTransport) Poll() (*message, error) {
-	msg := &message{}
-	// Only log metadata, not message content to prevent exposure
-	log.Println("pipeTransport polling started")
 	if t.isClosed() {
 		return nil, fmt.Errorf("transport closed")
 	}
@@ -44,27 +40,22 @@ func (t *pipeTransport) Poll() (*message, error) {
 		return nil, fmt.Errorf("could not read protocol data: %w", err)
 	}
 
-	if err := json.Unmarshal(data, &msg); err != nil {
-		// Clear data immediately on error
+	// Ensure data buffer is cleared after use - fixes memory dump visibility issue
+	defer func() {
+		// Clear sensitive JSON data from memory to prevent memory dump exposure
 		for i := range data {
 			data[i] = 0
 		}
 		data = nil
+	}()
+
+	msg := &message{}
+	if err := json.Unmarshal(data, &msg); err != nil {
 		return nil, fmt.Errorf("could not decode json: %w", err)
 	}
-
-	// Clear the raw data immediately after successful unmarshaling
-	for i := range data {
-		data[i] = 0
-	}
-	data = nil
-
 	if os.Getenv("DEBUGP") != "" {
-		// Only show message metadata in debug, not content
-		fmt.Fprintf(os.Stdout, "\x1b[33mRECV>\x1b[0m Message ID: %d, Method: %s, GUID: %s\n",
-			msg.ID, msg.Method, msg.GUID)
+		fmt.Fprintf(os.Stderr, "\x1b[33mRECV>\x1b[0m\n[JSON DATA REDACTED FOR SECURITY]\n")
 	}
-	// Only log metadata, not message content
 	return msg, nil
 }
 
@@ -80,53 +71,54 @@ type message struct {
 }
 
 func (t *pipeTransport) Send(msg map[string]interface{}) error {
-	// Only log metadata, not message content to prevent exposure
-	msgID, _ := msg["id"]
-	msgMethod, _ := msg["method"]
-	log.Printf("Sending message - ID: %v, Method: %v", msgID, msgMethod)
 	if t.isClosed() {
 		return fmt.Errorf("transport closed")
 	}
 	msgBytes, err := json.Marshal(msg)
-
-	// Only log size, not content to prevent exposure
-	log.Printf("Message marshaled - size: %d bytes", len(msgBytes))
 	if err != nil {
 		return fmt.Errorf("pipeTransport: could not marshal json: %w", err)
 	}
-	if os.Getenv("DEBUGP") != "" {
-		// Only show message metadata in debug, not content
-		fmt.Fprintf(os.Stdout, "\x1b[32mSEND>\x1b[0m Message ID: %v, Method: %v, Size: %d bytes\n",
-			msgID, msgMethod, len(msgBytes))
-	}
 
-	lengthPadding := make([]byte, 4)
-	binary.LittleEndian.PutUint32(lengthPadding, uint32(len(msgBytes)))
-	if _, err = t.writer.Write(append(lengthPadding, msgBytes...)); err != nil {
-		// Clear data on error
+	// Ensure msgBytes is cleared after use - fixes memory dump visibility issue
+	defer func() {
+		// Clear sensitive JSON data from memory to prevent memory dump exposure
 		for i := range msgBytes {
 			msgBytes[i] = 0
 		}
 		msgBytes = nil
-		for i := range lengthPadding {
-			lengthPadding[i] = 0
-		}
-		lengthPadding = nil
-		return err
+	}()
+
+	if os.Getenv("DEBUGP") != "" {
+		fmt.Fprintf(os.Stderr, "\x1b[32mSEND>\x1b[0m\n[JSON DATA REDACTED FOR SECURITY]\n")
 	}
 
-	// Clear all data immediately after successful write
-	for i := range msgBytes {
-		msgBytes[i] = 0
-	}
-	msgBytes = nil
+	lengthPadding := make([]byte, 4)
+	binary.LittleEndian.PutUint32(lengthPadding, uint32(len(msgBytes)))
+
+	// Create secure write buffer to avoid keeping msgBytes in append result
+	writeBuffer := make([]byte, 4+len(msgBytes))
+	copy(writeBuffer, lengthPadding)
+	copy(writeBuffer[4:], msgBytes)
+
+	// Clear intermediate buffers
 	for i := range lengthPadding {
 		lengthPadding[i] = 0
 	}
-	lengthPadding = nil
-	// Note: We cannot clear the input msg map as it belongs to the caller
+
+	defer func() {
+		// Clear write buffer to prevent memory dump exposure
+		for i := range writeBuffer {
+			writeBuffer[i] = 0
+		}
+		writeBuffer = nil
+	}()
+
+	if _, err = t.writer.Write(writeBuffer); err != nil {
+		return err
+	}
 	return nil
 }
+
 func (t *pipeTransport) Close() error {
 	select {
 	case <-t.closed:
