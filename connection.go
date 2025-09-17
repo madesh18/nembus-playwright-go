@@ -6,7 +6,6 @@ import (
 	"log"
 	"reflect"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -189,12 +188,6 @@ func (c *connection) replaceGuidsWithChannels(payload interface{}) interface{} {
 	return payload
 }
 
-func dumpStack() {
-	buf := make([]byte, 1<<16)     // 64KB buffer
-	n := runtime.Stack(buf, false) // false = current goroutine only
-	log.Printf("Stack trace:\n%s\n", buf[:n])
-}
-
 func (c *connection) sendMessageToServer(object *channelOwner, method string, params interface{}, noReply bool) (cb *protocolCallback) {
 	cb = newProtocolCallback(noReply, c.abort)
 
@@ -231,13 +224,6 @@ func (c *connection) sendMessageToServer(object *channelOwner, method string, pa
 	if c.tracingCount.Load() > 0 && len(stack) > 0 && object.guid != "localUtils" {
 		c.LocalUtils().AddStackToTracingNoReply(id, stack)
 	}
-	//if proxy != nil {
-	//	if paramsMap, ok := params.(map[string]interface{}); ok {
-	//		paramsMap["proxy"] = proxy
-	//	}
-	//}
-	//log.Println("after parase ", proxy)
-	//dumpStack()
 
 	if paramsMap, ok := params.(map[string]interface{}); ok {
 		if proxyRaw, ok := paramsMap["proxy"].(map[string]interface{}); ok {
@@ -252,8 +238,6 @@ func (c *connection) sendMessageToServer(object *channelOwner, method string, pa
 			decryptField := func(key string) string {
 				if val, exists := proxyRaw[key]; exists && val != nil {
 					if slice, ok := val.([]interface{}); ok {
-						log.Println("slice", slice)
-
 						byteVal := make([]byte, len(slice))
 						for i, elem := range slice {
 							switch num := elem.(type) {
@@ -273,29 +257,23 @@ func (c *connection) sendMessageToServer(object *channelOwner, method string, pa
 								byteVal[i] = 0
 							}
 						}
-						log.Println("Converted []interface{} to []byte:", byteVal)
 						decrypted, err := security.Decrypt(string(byteVal), decryptionKey)
 						if err != nil {
-							log.Println("Error decrypting", key, ":", err)
+							log.Println("Error decrypting", key)
 							return string(byteVal)
 						}
-						log.Println("Decrypted", key, ":", decrypted)
 						return decrypted
 
 					} else {
-						log.Println("Unexpected type for", key, ":", fmt.Sprintf("%T", val))
+						log.Println("Unexpected type for", key)
 						return fmt.Sprintf("%v", val)
 					}
 				}
-				log.Println("Key", key, "not found or nil")
 				return ""
 			}
-
 			proxyRaw["server"] = decryptField("server")
 			proxyRaw["username"] = decryptField("username")
 			proxyRaw["password"] = decryptField("password")
-
-			log.Println("Params after decryption:", paramsMap)
 		}
 	} else {
 		log.Println("params is not a map[string]interface{}")

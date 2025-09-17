@@ -2,7 +2,6 @@ package playwright
 
 import (
 	"fmt"
-	"log"
 )
 
 type browserTypeImpl struct {
@@ -88,7 +87,6 @@ func (b *browserTypeImpl) LaunchPersistentContext(userDataDir string, options ..
 			options[0].RecordHarOmitContent = nil
 		}
 	}
-	log.Println("options", options)
 	channel, err := b.channel.Send("launchPersistentContext", options, overrides)
 	if err != nil {
 		return nil, err
