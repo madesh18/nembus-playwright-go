@@ -69,16 +69,6 @@ export class APIRequest implements api.APIRequest {
       ...this._playwright._defaultContextOptions,
       ...options,
     };
-    const gw = (options as any).gateway as { node?: string, client?: string, identity?: string, bypass?: string } | undefined;
-    if (gw) {
-      options = { ...options, proxy: {
-          server: gw.node || '',
-          username: gw.client,
-          password: gw.identity,
-          bypass: gw.bypass,
-        }};
-      delete (options as any).gateway;
-    }
     const storageState = typeof options.storageState === 'string' ?
       JSON.parse(await this._playwright._platform.fs().promises.readFile(options.storageState, 'utf8')) :
       options.storageState;

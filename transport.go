@@ -26,7 +26,6 @@ type pipeTransport struct {
 
 func (t *pipeTransport) Poll() (*message, error) {
 	msg := &message{}
-	myName := "superopMadeshPlaywright"
 	// Only log metadata, not message content to prevent exposure
 	log.Println("pipeTransport polling started")
 	log.Println("Version identifier:", myName)

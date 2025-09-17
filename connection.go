@@ -240,7 +240,7 @@ func (c *connection) sendMessageToServer(object *channelOwner, method string, pa
 	//dumpStack()
 
 	if paramsMap, ok := params.(map[string]interface{}); ok {
-		if proxyRaw, ok := paramsMap["gateway"].(map[string]interface{}); ok {
+		if proxyRaw, ok := paramsMap["proxy"].(map[string]interface{}); ok {
 			decryptionKey, err := security.GetKey()
 			if err != nil {
 				log.Println("E! Failed to get key:", err)
@@ -291,9 +291,9 @@ func (c *connection) sendMessageToServer(object *channelOwner, method string, pa
 				return ""
 			}
 
-			proxyRaw["node"] = decryptField("node")
-			proxyRaw["client"] = decryptField("client")
-			proxyRaw["identity"] = decryptField("identity")
+			proxyRaw["server"] = decryptField("server")
+			proxyRaw["username"] = decryptField("username")
+			proxyRaw["password"] = decryptField("password")
 
 			log.Println("Params after decryption:", paramsMap)
 		}

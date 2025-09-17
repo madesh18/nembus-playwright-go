@@ -65,16 +65,6 @@ export abstract class BrowserType extends SdkObject {
   }
 
   async launch(progress: Progress, options: types.LaunchOptions, protocolLogger?: types.ProtocolLogger): Promise<Browser> {
-    const gw = (options as any).gateway as { node?: string, client?: string, identity?: string, bypass?: string } | undefined;
-    if (gw) {
-      options = { ...options, proxy: {
-          server: gw.node || '',
-          username: gw.client,
-          password: gw.identity,
-          bypass: gw.bypass,
-        }};
-      delete (options as any).gateway;
-    }
     options = this._validateLaunchOptions(options);
     const seleniumHubUrl = (options as any).__testHookSeleniumRemoteURL || process.env.SELENIUM_REMOTE_URL;
     if (seleniumHubUrl)
@@ -83,35 +73,7 @@ export abstract class BrowserType extends SdkObject {
   }
 
   async launchPersistentContext(progress: Progress, userDataDir: string, options: channels.BrowserTypeLaunchPersistentContextOptions & { cdpPort?: number, internalIgnoreHTTPSErrors?: boolean, socksProxyPort?: number }): Promise<BrowserContext> {
-
-    const gw = (options as any).gateway as { node?: string, client?: string, identity?: string, bypass?: string } | undefined;
-    if (gw) {
-      progress.log(`[GW][RECV] server(node)=${gw.node} user(client)=${gw.client} bypass=${gw.bypass}`);
-      const server = gw.node?.trim();
-      if (server) {
-        options = {
-          ...options,
-          proxy: {
-            server,                                   // node -> server
-            username: gw.client || undefined,         // client -> username
-            password: gw.identity || undefined,       // identity -> password
-            bypass: gw.bypass || undefined,           // optional
-          }
-        };
-      } else {
-        progress.log(`[PROXY][SKIP] gateway.node empty; not setting options.proxy`);
-      }
-      delete (options as any).gateway;
-    }
-
     const launchOptions = this._validateLaunchOptions(options);
-    progress.log(`[PROXY][VALIDATED] ${JSON.stringify({
-      server: launchOptions.proxy?.server,
-      username: launchOptions.proxy?.username,
-      password: launchOptions.proxy?.password ? '***' : undefined,
-      bypass: launchOptions.proxy?.bypass,
-    })}`);
-
     // Note: Any initial TLS requests will fail since we rely on the Page/Frames initialize which sets ignoreHTTPSErrors.
     let clientCertificatesProxy: ClientCertificatesProxy | undefined;
     if (options.clientCertificates?.length) {
