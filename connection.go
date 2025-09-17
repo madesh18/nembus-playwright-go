@@ -45,7 +45,6 @@ func (c *connection) Start() (*Playwright, error) {
 	go func() {
 		for {
 			msg, err := c.transport.Poll()
-			log.Println("connection:===========", msg)
 			if err != nil {
 				_ = c.transport.Close()
 				c.cleanup(err)
@@ -181,7 +180,6 @@ func (c *connection) replaceGuidsWithChannels(payload interface{}) interface{} {
 		}
 		for key := range mapV {
 			mapV[key] = c.replaceGuidsWithChannels(mapV[key])
-			log.Println("")
 		}
 		return mapV
 	}
