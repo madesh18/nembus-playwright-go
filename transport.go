@@ -28,7 +28,6 @@ func (t *pipeTransport) Poll() (*message, error) {
 	msg := &message{}
 	// Only log metadata, not message content to prevent exposure
 	log.Println("pipeTransport polling started")
-	log.Println("Version identifier:", myName)
 	if t.isClosed() {
 		return nil, fmt.Errorf("transport closed")
 	}
@@ -66,7 +65,6 @@ func (t *pipeTransport) Poll() (*message, error) {
 			msg.ID, msg.Method, msg.GUID)
 	}
 	// Only log metadata, not message content
-	log.Printf("Processed message - ID: %d, Method: %s by version: %s", msg.ID, msg.Method, myName)
 	return msg, nil
 }
 
