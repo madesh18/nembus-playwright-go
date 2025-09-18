@@ -16,8 +16,8 @@ func main() {
 		log.Fatalf("could not download driver: %v", err)
 	}
 	cmd := driver.Command(os.Args[1:]...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = nil
+	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("could not run driver: %v", err)
 	}
