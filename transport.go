@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/go-jose/go-jose/v3/json"
 )
@@ -53,11 +52,6 @@ func (t *pipeTransport) Poll() (*message, error) {
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return nil, fmt.Errorf("could not decode json: %w", err)
 	}
-	if os.Getenv("DEBUGP") != "" {
-		// Only show message metadata in debug, not content
-		fmt.Fprintf(os.Stdout, "\x1b[33mRECV>\x1b[0m Message ID: %d, Method: %s, GUID: %s\n",
-			msg.ID, msg.Method, msg.GUID)
-	}
 	// Only log metadata, not message content
 	return msg, nil
 }
@@ -91,10 +85,6 @@ func (t *pipeTransport) Send(msg map[string]interface{}) error {
 		}
 		msgBytes = nil
 	}()
-
-	if os.Getenv("DEBUGP") != "" {
-		fmt.Fprintf(os.Stderr, "\x1b[32mSEND>\x1b[0m\n[JSON DATA REDACTED FOR SECURITY]\n")
-	}
 
 	lengthPadding := make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthPadding, uint32(len(msgBytes)))
